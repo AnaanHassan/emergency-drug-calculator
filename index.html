@@ -84,6 +84,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 
 /* Drug cards */
 .section-h { font: 700 15px var(--font-display); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin: 18px 0 8px; }
+.section-note { margin: 0 0 10px; padding: 9px 12px; border-left: 3px solid var(--mode); background: var(--surface); border-radius: 0 8px 8px 0; font-size: 13.5px; max-width: 90ch; }
 .grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
 @media (min-width: 860px) { .grid { grid-template-columns: 1fr 1fr; } }
 .drug { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; min-width: 0; display: flex; flex-direction: column; }
@@ -174,9 +175,14 @@ footer strong { color: var(--fg); }
   // Concentration `w(wt)` makes a weight-based dilution; `only` limits it to 'p' or 'a'.
   const CATS = [
     ["all", "All"], ["arrest", "Arrest & rhythm"], ["rsi", "RSI"], ["sed", "Sedation & pain"],
-    ["rev", "Reversal"], ["inf", "Infusions"], ["seiz", "Seizures"], ["resp", "Airway & anaphylaxis"], ["metab", "Metabolic & other"]
+    ["rev", "Reversal"], ["inf", "Infusions"], ["seiz", "Seizures"], ["agit", "Agitation"], ["resp", "Airway & anaphylaxis"], ["metab", "Metabolic & other"]
   ];
-  const ageOr = (pt, ageTest, wtTest) => pt.ageY != null ? ageTest(pt.ageY) : (pt.wt ? wtTest(pt.wt) : null);
+  const SECTION_NOTES = {
+    agit: "Stepped approach: 1. De-escalate (calm voice, space, remove triggers, check glucose, hypoxia, pain, retention). " +
+      "2. Offer oral medication. 3. IM if refused or dangerous. 4. Ketamine or senior/anaesthetic help if still unsafe. " +
+      "After any parenteral sedation: continuous SpO₂, obs every 15 min, ECG once settled."
+  };
+  const ageOr =(pt, ageTest, wtTest) => pt.ageY != null ? ageTest(pt.ageY) : (pt.wt ? wtTest(pt.wt) : null);
 
   const DRUGS = [
     // ----- Arrest & rhythm -----
@@ -408,6 +414,45 @@ footer strong { color: var(--fg); }
       concs: [{ l: "100 mg/ml", v: 100 }],
       p: { kg: 40, max: 3000 }, a: { kg: 40, max: 3000 },
       note: "Over 5–10 min. Avoid in liver disease, suspected metabolic disorder, pregnancy, and children <2 y." },
+
+    // ----- Agitation / aggression -----
+    { id: "loraz-po", name: "Lorazepam", cls: "benzo", cat: "agit", ind: "Agitation, will take oral", route: "PO/SL", unit: "mg",
+      p: { kg: 0.05, max: 2 }, a: { fixed: [1, 2] },
+      note: "Step 1 if the patient accepts oral medication. Repeat after 45–60 min if needed. Elderly: 0.5–1 mg." },
+    { id: "olanz-po", name: "Olanzapine", cls: "other", cat: "agit", ind: "Agitation, will take oral (psychosis)", route: "PO/ODT", unit: "mg",
+      p: { kg: 0.1, max: 10 }, a: { fixed: [5, 10] },
+      note: "Orally disintegrating tablet useful. Elderly: 2.5–5 mg. Max 20 mg/day adult." },
+    { id: "mid-agit", name: "Midazolam", cls: "benzo", cat: "agit", ind: "Severe agitation / violence", route: "IM", unit: "mg",
+      concs: [{ l: "5 mg/ml", v: 5 }],
+      p: { kg: [0.1, 0.2], max: 10 }, a: { fixed: [5, 10] },
+      an: "Elderly or frail: 2.5–5 mg. IV (if access): 2.5–5 mg, titrate every 3–5 min.",
+      note: "Onset 5–15 min. Preferred if alcohol or stimulant withdrawal / intoxication. Monitor airway and SpO₂." },
+    { id: "drop", name: "Droperidol", cls: "other", cat: "agit", ind: "Severe agitation / violence", route: "IM/IV", unit: "mg",
+      concs: [{ l: "2.5 mg/ml", v: 2.5 }],
+      p: { kg: 0.1, max: 10 }, a: { fixed: [5, 10] },
+      note: "Onset 10–20 min. Can combine with midazolam. QT prolongation: get an ECG once settled. Watch for dystonia." },
+    { id: "halo", name: "Haloperidol", cls: "other", cat: "agit", ind: "Severe agitation (psychosis)", route: "IM", unit: "mg",
+      concs: [{ l: "5 mg/ml", v: 5 }],
+      p: { fn: pt => pt.ageY != null && pt.ageY < 12 ? { txt: "Not recommended under 12 y: use midazolam or droperidol" } : { kg: [0.05, 0.1] }, max: 5 },
+      a: { fixed: [5, 10] },
+      an: "Elderly: 0.5–2 mg. Often given with promethazine 25–50 mg IM or lorazepam 1–2 mg IM. Max 20 mg/day.",
+      note: "Avoid in Parkinson's / Lewy body dementia and if QT long. Get an ECG. High dystonia risk: have benztropine ready." },
+    { id: "olanz-im", name: "Olanzapine", cls: "other", cat: "agit", ind: "Severe agitation (psychosis)", route: "IM", unit: "mg",
+      concs: [{ l: "5 mg/ml (10 mg vial in 2.1 ml)", v: 5 }],
+      p: { txt: "Adult use only (children: oral 0.1 mg/kg)" }, a: { fixed: [5, 10] },
+      note: "Elderly: 2.5–5 mg. Do not give within 1 h of a parenteral benzodiazepine (cardiorespiratory depression)." },
+    { id: "prometh", name: "Promethazine", cls: "other", cat: "agit", ind: "Agitation, with haloperidol or alone", route: "IM", unit: "mg",
+      concs: [{ l: "25 mg/ml", v: 25 }],
+      p: { txt: "Not recommended for acute sedation in children" }, a: { fixed: [25, 50] },
+      note: "Useful if benzodiazepine-tolerant or respiratory concerns. Anticholinergic; avoid IV (tissue injury)." },
+    { id: "ket-agit", name: "Ketamine", cls: "induction", cat: "agit", ind: "Extreme agitation, danger to self/staff (rescue)", route: "IM", unit: "mg",
+      concs: [{ l: "100 mg/ml", v: 100 }, { l: "50 mg/ml", v: 50 }],
+      p: { kg: [4, 5], max: 500 }, a: { kg: [4, 5], max: 500 },
+      note: "Onset 2–5 min. Airway-skilled team, monitoring and resus equipment present. Hypersalivation, laryngospasm, emergence reactions; may need intubation." },
+    { id: "benztrop", name: "Benztropine", cls: "anticholin", cat: "agit", ind: "Acute dystonia after antipsychotic", route: "IV/IM", unit: "mg",
+      concs: [{ l: "1 mg/ml", v: 1 }],
+      p: { kg: 0.02, max: 1 }, a: { fixed: [1, 2] },
+      note: "Usually works within minutes IV. Dystonia may recur: consider oral course for 2–3 days." },
 
     // ----- Airway, asthma & anaphylaxis -----
     { id: "adr-im", name: "Adrenaline", cls: "vaso", cat: "resp", ind: "Anaphylaxis", route: "IM", unit: "mg",
@@ -701,7 +746,7 @@ footer strong { color: var(--fg); }
     for (const [id, label] of groups) {
       const ds = DRUGS.filter(d => d.cat === id && match(d));
       if (!ds.length) continue;
-      html += `<h2 class="section-h">${label}</h2><div class="grid">${ds.map(d => card(d, pt)).join("")}</div>`;
+      html += `<h2 class="section-h">${label}</h2>${SECTION_NOTES[id] ? `<p class="section-note">${SECTION_NOTES[id]}</p>` : ""}<div class="grid">${ds.map(d => card(d, pt)).join("")}</div>`;
     }
     $("list").innerHTML = html || `<div class="empty">No drugs match “${state.q.replace(/</g, "&lt;")}”.</div>`;
   }
