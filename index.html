@@ -1,4 +1,7 @@
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b6e69">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <title>Resus Dose Calculator</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -122,11 +125,33 @@ footer strong { color: var(--fg); }
 .legend { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
 .legend span { font-size: 12px; color: #111; padding: 2px 8px; border-radius: 4px; }
 
-@media (max-width: 520px) {
-  .brand h1 { font-size: 19px; }
-  .field input { width: 70px; font-size: 17px; }
-  .field.wt input { width: 84px; }
-  .num .v { font-size: 20px; }
+/* Phone: two-row header (mode + summary, then inputs), filters scroll away, 16px controls so iOS doesn't zoom */
+@media (max-width: 640px) {
+  body { font-size: 15px; -webkit-text-size-adjust: 100%; }
+  .bar .wrap { display: grid; grid-template-columns: 1fr 1fr 1.3fr auto; grid-template-areas: "seg seg seg who" "ay mo wt clr"; gap: 8px; padding-block: 8px 10px; }
+  body[data-mode="a"] .bar .wrap { grid-template-areas: "seg seg seg who" "ay wt wt clr"; }
+  .brand { grid-area: who; flex: none; justify-content: flex-end; align-self: center; }
+  .brand h1 { display: none; }
+  .brand .who { font-size: 12px; line-height: 1.25; }
+  .seg { grid-area: seg; display: flex; }
+  .seg button { flex: 1; padding: 10px 8px; font-size: 15px; }
+  .f-ay { grid-area: ay; } #mo-field { grid-area: mo; } .field.wt { grid-area: wt; }
+  .field input, .field.wt input { width: 100%; min-width: 0; height: 44px; font-size: 18px; }
+  .clear { grid-area: clr; align-self: end; height: 44px; padding: 0 12px; }
+  .filters { position: static; padding-block: 10px 4px; }
+  .chips { margin-inline: calc(-1 * max(16px, env(safe-area-inset-left, 0px))); padding-inline: max(16px, env(safe-area-inset-left, 0px)); }
+  .chips button { padding: 9px 14px; font-size: 14px; }
+  .big-wt { font-size: 30px; }
+  .field label { white-space: nowrap; letter-spacing: .04em; }
+  .tiles { display: flex; overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: none;
+    margin-inline: calc(-1 * max(16px, env(safe-area-inset-left, 0px))); padding-inline: max(16px, env(safe-area-inset-left, 0px)); }
+  .tiles::-webkit-scrollbar, .chips::-webkit-scrollbar { display: none; }
+  .tile { flex: 0 0 148px; scroll-snap-align: start; }
+  .tile .v { font-size: 16px; }
+  .tab .name { font-size: 18px; }
+  .num .v { font-size: 21px; }
+  select.conc { font-size: 16px; width: 100%; padding: 6px; }
+  .search { height: 46px; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
@@ -141,9 +166,9 @@ footer strong { color: var(--fg); }
       <button id="mode-p" aria-pressed="true">Paediatric</button>
       <button id="mode-a" aria-pressed="false">Adult</button>
     </div>
-    <div class="field"><label for="age-y">Age (yrs)</label><input id="age-y" type="number" inputmode="decimal" min="0" max="120" step="1" placeholder="yrs"></div>
-    <div class="field" id="mo-field"><label for="age-m">+ Months</label><input id="age-m" type="number" inputmode="numeric" min="0" max="11" step="1" placeholder="mo"></div>
-    <div class="field wt"><label for="wt">Weight (kg)</label><input id="wt" type="number" inputmode="decimal" min="0.5" max="300" step="0.1" placeholder="kg"></div>
+    <div class="field f-ay"><label for="age-y">Age (y)</label><input id="age-y" type="number" inputmode="numeric" min="0" max="120" step="1" placeholder="yrs" enterkeyhint="next"></div>
+    <div class="field" id="mo-field"><label for="age-m">Months</label><input id="age-m" type="number" inputmode="numeric" min="0" max="11" step="1" placeholder="mo" enterkeyhint="next"></div>
+    <div class="field wt"><label for="wt">Weight kg</label><input id="wt" type="number" inputmode="decimal" min="0.5" max="300" step="0.1" placeholder="kg" enterkeyhint="done"></div>
     <button class="clear" id="clear">Clear</button>
   </div>
 </div>
@@ -715,6 +740,8 @@ footer strong { color: var(--fg); }
     $("mode-p").setAttribute("aria-pressed", pt.mode === "p");
     $("mode-a").setAttribute("aria-pressed", pt.mode === "a");
     $("mo-field").hidden = pt.mode === "a";
+    const tc = document.querySelector('meta[name="theme-color"]');
+    if (tc) tc.setAttribute("content", getComputedStyle(document.body).getPropertyValue("--mode").trim() || "#0b6e69");
 
     // Status line + header summary
     let src = "";
@@ -757,10 +784,24 @@ footer strong { color: var(--fg); }
   $("age-y").value = state.y; $("age-m").value = state.m; $("wt").value = state.wt;
   $("mode-p").onclick = () => { state.mode = "p"; save(); render(); };
   $("mode-a").onclick = () => { state.mode = "a"; save(); render(); };
-  for (const [id, key] of [["age-y", "y"], ["age-m", "m"], ["wt", "wt"]]) {
-    $(id).addEventListener("input", e => { state[key] = e.target.value; save(); render(); });
+  // Typing an age picks the group: under 16 is paediatric, 16 and over is adult
+  function autoMode() {
+    const y = parseFloat(state.y), m = parseFloat(state.m);
+    if (isNaN(y) && isNaN(m)) return;
+    state.mode = (isNaN(y) ? 0 : y) + (isNaN(m) ? 0 : m) / 12 < 16 ? "p" : "a";
   }
-  $("clear").onclick = () => { state.y = state.m = state.wt = ""; $("age-y").value = $("age-m").value = $("wt").value = ""; save(); render(); $("age-y").focus(); };
+  for (const [id, key] of [["age-y", "y"], ["age-m", "m"], ["wt", "wt"]]) {
+    $(id).addEventListener("input", e => { state[key] = e.target.value; if (key !== "wt") autoMode(); save(); render(); });
+  }
+  // Enter on the phone keypad moves to the next visible field, then closes the keyboard
+  document.querySelector(".bar").addEventListener("keydown", e => {
+    if (e.key !== "Enter" || e.target.tagName !== "INPUT") return;
+    e.preventDefault();
+    const fields = ["age-y", "age-m", "wt"].map($).filter(el => !el.closest("[hidden]"));
+    const next = fields[fields.indexOf(e.target) + 1];
+    next ? next.focus() : e.target.blur();
+  });
+  $("clear").onclick =() => { state.y = state.m = state.wt = ""; $("age-y").value = $("age-m").value = $("wt").value = ""; save(); render(); $("age-y").focus(); };
   $("q").addEventListener("input", e => { state.q = e.target.value; render(); });
   $("chips").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; state.cat = b.dataset.cat; render(); });
   $("list").addEventListener("change", e => {
