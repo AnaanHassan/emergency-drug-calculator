@@ -194,6 +194,14 @@ footer strong { color: var(--fg); }
 .cb-top h2 { flex: 1; }
 .cb-top .who { font: 600 13px var(--font-num); order: 3; flex: 1 1 100%; min-width: 0; }
 .cb-top button { font: 600 14px var(--font-body); color: #fff; background: rgb(0 0 0 / .22); border: 1px solid rgb(255 255 255 / .45); border-radius: 8px; min-height: 40px; padding: 0 12px; cursor: pointer; }
+.alarm { order: 4; flex: 1 1 100%; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 10px; border-radius: 8px;
+  background: #fff; color: var(--code); font: 700 15px/1.25 var(--font-body); animation: alarm-pulse 1s steps(1) infinite; }
+.alarm[hidden] { display: none; }
+.alarm span { min-width: 0; }
+.cb-top .alarm button { flex: none; background: var(--code); border-color: var(--code); min-height: 40px; }
+@keyframes alarm-pulse { 50% { background: #ffd6d6; } }
+.cb-entry.ringing { animation: entry-ring 1s steps(1) infinite; }
+@keyframes entry-ring { 50% { background: #7f0000; } }
 .cb-body { max-width: 900px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px;
   padding: 12px max(16px, env(safe-area-inset-right, 0px)) calc(32px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); }
 .cb-h { font: 700 14px var(--font-display); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
@@ -274,7 +282,7 @@ footer strong { color: var(--fg); }
   .rh button { font-size: 13px; }
   .act b { font-size: 16px; }
 }
-@media (prefers-reduced-motion: reduce) { .timer.flash { animation: none; outline: 4px solid var(--code); } }
+@media (prefers-reduced-motion: reduce) { .timer.flash { animation: none; outline: 4px solid var(--code); } .alarm, .cb-entry.ringing { animation: none; } }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 
@@ -322,6 +330,7 @@ footer strong { color: var(--fg); }
     <div class="who" id="cb-who"></div>
     <button id="cb-sound" aria-pressed="true">Sound on</button>
     <button id="cb-close">Close</button>
+    <div class="alarm" id="cb-alarm" role="alert" hidden></div>
   </div>
   <div class="cb-body" id="cb-body"></div>
 </section>
@@ -973,7 +982,7 @@ footer strong { color: var(--fg); }
   const MORE = ["lido-arrest", "cacl", "caglu", "bicarb", "mag", "dex10", "atro-brady"];
 
   let code = store.get("code", null);
-  let sound = store.get("cbSound", true), audio = null, wakeLock = null, editIdx = null, lastPromptHtml = "", alertedCycle = null;
+  let sound = store.get("cbSound", true), audio = null, wakeLock = null, editIdx = null, lastPromptHtml = "";
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const clock = t => new Date(t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
   const mmss = ms => { const s = Math.max(0, Math.floor(ms / 1000)), m = Math.floor(s / 60); return String(m).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0"); };
@@ -1134,26 +1143,86 @@ footer strong { color: var(--fg); }
     el.className = "timer" + (cls ? " " + cls : "");
   }
 
-  function beep() {
+  // Distinct tone patterns so the team can tell alarms apart without looking: [frequency Hz, start s, length s]
+  const TONES = {
+    rhythm: [[880, 0, .22], [880, .3, .22], [880, .6, .22]],
+    urgent: [[660, 0, .4], [880, .5, .4]],
+    warn: [[660, 0, .3]],
+    pre: [[520, 0, .15]]
+  };
+  function tone(kind) {
     if (!sound) return;
     try {
       audio = audio || new (window.AudioContext || window.webkitAudioContext)();
-      [0, 0.35, 0.7].forEach(off => {
+      if (audio.state === "suspended") audio.resume();
+      for (const [f, off, len] of TONES[kind] || TONES.warn) {
         const o = audio.createOscillator(), g = audio.createGain(), t0 = audio.currentTime + off;
-        o.frequency.value = 880; o.connect(g); g.connect(audio.destination);
-        g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.5, t0 + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.25);
-        o.start(t0); o.stop(t0 + 0.3);
-      });
+        o.frequency.value = f; o.connect(g); g.connect(audio.destination);
+        g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.5, t0 + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t0 + len);
+        o.start(t0); o.stop(t0 + len + 0.05);
+      }
     } catch (e) {}
-    try { navigator.vibrate && navigator.vibrate([300, 150, 300]); } catch (e) {}
+    try { navigator.vibrate && navigator.vibrate(kind === "pre" ? 150 : [300, 150, 300]); } catch (e) {}
+  }
+
+  // ---------- Alarms ----------
+  // Each due item has a key tied to the event that started its clock, so it alarms once when it becomes due,
+  // repeats while ignored (rhythm/urgent every 30 s, warn every 60 s) and goes quiet once done or silenced.
+  const REPEAT = { rhythm: 30000, urgent: 30000, warn: 60000, pre: 0 };
+  const alarmLog = {};          // key -> time last sounded
+  const silenced = new Set();   // keys the team has acknowledged
+
+  function dueAlarms(d) {
+    const out = [], nowT = Date.now(), p = code.mode === "p";
+    if (d.ended || d.rosc || !code) return out;
+    const left = CYCLE_MS - (nowT - d.cycleStart);
+    if (left <= 0) out.push({ key: "cycle:" + d.cycleStart, level: "rhythm", text: "Rhythm check due" });
+    else if (left <= 15000) out.push({ key: "pre:" + d.cycleStart, level: "pre", text: "Rhythm check in 15 s: prepare, pre-charge defibrillator" });
+    if (d.shockable && (!d.lastShockT || d.lastShockT < d.lastRhythmT) && nowT - d.lastRhythmT > 20000)
+      out.push({ key: "shock:" + d.lastRhythmT, level: "urgent", text: "Shock due" });
+    if (d.rhythm && !d.adr.length && (d.shockable ? d.shocks >= (p ? 3 : 2) : true))
+      out.push({ key: "adr-first", level: "urgent", text: "Adrenaline due" });
+    if (d.adr.length) {
+      const last = d.adr[d.adr.length - 1], since = nowT - last;
+      if (since >= 300000) out.push({ key: "adr5:" + last, level: "urgent", text: "Adrenaline overdue (5 min)" });
+      else if (since >= 180000) out.push({ key: "adr3:" + last, level: "warn", text: "Adrenaline due (3 min)" });
+    }
+    if (d.shockable && d.shocks >= 3 && d.amio === 0) out.push({ key: "amio1", level: "urgent", text: "Amiodarone due" });
+    else if (d.shockable && d.shocks >= 5 && d.amio === 1) out.push({ key: "amio2", level: "urgent", text: "Amiodarone 2nd dose due" });
+    return out;
+  }
+
+  function runAlarms(d) {
+    const active = dueAlarms(d), nowT = Date.now();
+    for (const k of Object.keys(alarmLog)) if (!active.some(a => a.key === k)) delete alarmLog[k];
+    let loudest = null;
+    for (const a of active) {
+      if (silenced.has(a.key)) continue;
+      const lastT = alarmLog[a.key];
+      if (lastT == null || (REPEAT[a.level] && nowT - lastT >= REPEAT[a.level])) {
+        alarmLog[a.key] = nowT;
+        if (!loudest || ["rhythm", "urgent", "warn", "pre"].indexOf(a.level) < ["rhythm", "urgent", "warn", "pre"].indexOf(loudest)) loudest = a.level;
+      }
+    }
+    if (loudest) tone(loudest);
+    const ringing = active.filter(a => !silenced.has(a.key) && a.level !== "pre");
+    const bar = $("cb-alarm");
+    if (bar) {
+      const html = ringing.length ? `<span>${ringing.map(a => esc(a.text)).join(" · ")}</span><button data-act="silence">Silence</button>` : "";
+      if (bar.dataset.html !== html) { bar.dataset.html = html; bar.innerHTML = html; }
+      bar.hidden = !ringing.length;
+    }
+    $("cb-entry").classList.toggle("ringing", ringing.length > 0 && $("cb").hidden);
+    return active;
   }
 
   function cbTick() {
     const entryTxt = $("cb-entry-txt");
-    if (!code) { entryTxt.textContent = "Start arrest timer & log"; return; }
+    if (!code) { entryTxt.textContent = "Start arrest timer & log"; $("cb-entry").classList.remove("ringing"); $("cb-alarm").hidden = true; return; }
     const d = derive(), start = code.events[0].t, nowT = d.ended ? d.ended.t : Date.now();
     entryTxt.innerHTML = d.ended ? `${esc(d.ended.label)} · <u>View summary</u>` : `In progress <span class="t">${mmss(nowT - start)}</span> · Open`;
-    if ($("cb").hidden) { if (!d.ended && !d.rosc && Date.now() - d.cycleStart >= CYCLE_MS && alertedCycle !== d.cycleStart) { alertedCycle = d.cycleStart; beep(); } return; }
+    runAlarms(d);
+    if ($("cb").hidden) return;
 
     setTimer("tm-total", mmss(nowT - start), d.ended ? "Ended" : clock(start) + " start", d.ended ? "" : "");
     if (d.ended || d.rosc) setTimer("tm-cycle", "–", d.rosc ? "ROSC" : "Ended", d.rosc ? "ok" : "");
@@ -1161,7 +1230,6 @@ footer strong { color: var(--fg); }
       const left = CYCLE_MS - (Date.now() - d.cycleStart);
       if (left <= 0) {
         setTimer("tm-cycle", "00:00", "CHECK RHYTHM", "urgent flash");
-        if (alertedCycle !== d.cycleStart) { alertedCycle = d.cycleStart; beep(); }
       } else setTimer("tm-cycle", mmss(left + 999), "Next rhythm check", left <= 15000 ? "warn" : "");
     }
     if (!d.adr.length) setTimer("tm-adr", "–", "None given", "");
@@ -1252,7 +1320,17 @@ footer strong { color: var(--fg); }
 
   $("cb-entry").onclick = () => code ? openCode() : startCode();
   $("cb-close").onclick = closeCode;
-  $("cb-sound").onclick = () => { sound = !sound; store.set("cbSound", sound); if (sound) beep(); cbRender(); };
+  // Silence acknowledges what is ringing now; anything that becomes due later still alarms
+  $("cb-alarm").addEventListener("click", e => {
+    if (!e.target.closest('[data-act="silence"]') || !code) return;
+    for (const a of dueAlarms(derive())) silenced.add(a.key);
+    cbTick();
+  });
+  $("cb-sound").onclick = () => { sound = !sound; store.set("cbSound", sound); if (sound) tone("warn"); cbRender(); };
+  // Phones only allow sound after a tap: unlock audio on the first touch (also after a reload mid-code)
+  document.addEventListener("pointerdown", () => {
+    try { audio = audio || new (window.AudioContext || window.webkitAudioContext)(); if (audio.state === "suspended") audio.resume(); } catch (e) {}
+  }, { once: true, capture: true });
   document.addEventListener("visibilitychange", () => { if (!document.hidden) { keepAwake(); cbTick(); } });
   setInterval(cbTick, 250);
   if (code && !derive().ended) openCode(); else cbTick();
