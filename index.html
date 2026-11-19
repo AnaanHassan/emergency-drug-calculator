@@ -211,7 +211,7 @@ footer strong { color: var(--fg); }
 
   <footer>
     <div class="legend" id="legend"></div>
-    <p><strong>Check before you give.</strong> Doses follow APLS/ERC, PALS/ACLS, BNF/BNFc and RCH Melbourne guidance as of 2026. Confirm against your local protocol, the product concentration in your hand, renal/hepatic function and the clinical picture. Neonates (&lt;1 month) need neonatal references and are out of scope.</p>
+    <p><strong>Check before you give.</strong> Paediatric resuscitation doses follow APLS (Resuscitation Council UK 2021) and adult resuscitation doses follow AHA ACLS. Other drugs follow BNF/BNFc, with RCH Melbourne for agitation. Confirm against your local protocol, the product concentration in your hand, renal/hepatic function and the clinical picture. Neonates (&lt;1 month) need neonatal references and are out of scope.</p>
     <p>Estimated weight uses the APLS formulas: 0–12 months (0.5 × months) + 4; 1–5 years (2 × age) + 8; 6–12 years (3 × age) + 7. Weigh the child when you can. Card colours follow the ISO 26825 user-applied syringe label scheme.</p>
   </footer>
 </main>
@@ -238,34 +238,45 @@ footer strong { color: var(--fg); }
     { id: "adr-arrest", name: "Adrenaline", cls: "vaso", cat: "arrest", ind: "Cardiac arrest", route: "IV/IO", unit: "mg",
       concs: [{ l: "0.1 mg/ml (1:10,000)", v: 0.1 }, { l: "1 mg/ml (1:1,000)", v: 1 }],
       p: { kg: 0.01, max: 1 }, a: { fixed: 1 },
-      note: "Every 3–5 min. Non-shockable: give ASAP. Shockable: after 3rd shock. Flush after each dose." },
+      pn: "Shockable: after 3rd shock, then every alternate cycle (APLS).",
+      an: "Shockable: after 2nd shock (ACLS).",
+      note: "Every 3–5 min. Non-shockable: give ASAP. Flush after each dose." },
     { id: "amio-arrest", name: "Amiodarone", cls: "other", cat: "arrest", ind: "VF / pulseless VT (after 3rd shock)", route: "IV/IO", unit: "mg",
       concs: [{ l: "50 mg/ml", v: 50 }],
       p: { kg: 5, max: 300 }, a: { fixed: 300 },
       note: "Repeat after 5th shock: paeds 5 mg/kg; adult 150 mg. Flush with 5% dextrose." },
     { id: "amio-pulse", name: "Amiodarone", cls: "other", cat: "arrest", ind: "Tachyarrhythmia with pulse", route: "IV", unit: "mg",
       concs: [{ l: "50 mg/ml", v: 50 }],
-      p: { kg: 5, max: 300 }, a: { fixed: 300 },
-      note: "Paeds: over 20–60 min (PALS), max 15 mg/kg/day. Adult: ERC 300 mg over 10–20 min then 900 mg over 24 h; ACLS 150 mg over 10 min, repeat as needed. In 5% dextrose, central line preferred." },
+      p: { kg: 5, max: 300 }, a: { fixed: 150 },
+      pn: "Over 20 min (APLS). Seek expert advice first.",
+      an: "Over 10 min; repeat 150 mg if VT recurs, then 1 mg/min for 6 h (ACLS).",
+      note: "In 5% dextrose, central line preferred." },
     { id: "lido-arrest", name: "Lidocaine", cls: "local", cat: "arrest", ind: "VF / pVT (alternative to amiodarone)", route: "IV/IO", unit: "mg",
       concs: [{ l: "10 mg/ml (1%)", v: 10 }, { l: "20 mg/ml (2%)", v: 20 }],
       p: { kg: 1, max: 100 }, a: { kg: [1, 1.5], u: 1 },
       note: "Adult may repeat 0.5–0.75 mg/kg, max total 3 mg/kg." },
     { id: "adeno-1", name: "Adenosine · 1st dose", cls: "other", cat: "arrest", ind: "SVT", route: "IV rapid", unit: "mg",
       concs: [{ l: "3 mg/ml", v: 3 }],
-      p: { kg: 0.1, max: 6 }, a: { fixed: 6 },
+      p: { fn: pt => pt.ageY != null && pt.ageY >= 12 ? { fixed: 3, basis: "12–17 y: 3 mg" } : pt.ageY != null && pt.ageY < 1 ? { kg: 0.15, basis: "Infant 0.15 mg/kg" } : { kg: 0.1, basis: "1–11 y: 0.1 mg/kg" }, max: 12 },
+      a: { fixed: 6 },
       note: "Rapid push via large proximal vein with immediate 5–20 ml saline flush. Record ECG." },
     { id: "adeno-2", name: "Adenosine · 2nd dose", cls: "other", cat: "arrest", ind: "SVT, if 1st dose fails", route: "IV rapid", unit: "mg",
       concs: [{ l: "3 mg/ml", v: 3 }],
-      p: { kg: 0.2, max: 12 }, a: { fixed: 12 },
-      note: "Adult 3rd dose: 12 mg (ACLS) or 18 mg (ERC). Paeds (APLS/BNFc): may escalate to 0.3–0.5 mg/kg, max 12 mg per dose." },
+      p: { fn: pt => pt.ageY != null && pt.ageY >= 12 ? { fixed: 6, basis: "12–17 y: 6 mg, then 12 mg" } : pt.ageY != null && pt.ageY < 1 ? { kg: [0.2, 0.25], basis: "Infant: +0.05–0.1 mg/kg" } : { kg: [0.15, 0.2], basis: "+0.05–0.1 mg/kg" }, max: 12 },
+      a: { fixed: 12 },
+      pn: "APLS: keep increasing by 0.05–0.1 mg/kg every 1–2 min to max 0.5 mg/kg (max 12 mg).",
+      an: "ACLS: 6 mg, then 12 mg.",
+      note: "Rapid push with immediate flush." },
     { id: "atro-brady", name: "Atropine", cls: "anticholin", cat: "arrest", ind: "Symptomatic bradycardia", route: "IV/IO", unit: "mg",
       concs: [{ l: "0.6 mg/ml", v: 0.6 }, { l: "1 mg/ml", v: 1 }, { l: "0.1 mg/ml (prefilled)", v: 0.1 }],
-      p: { kg: 0.02, min: 0.1, max: 0.5 }, a: { fixed: [0.5, 1] },
-      note: "Adult repeat every 3–5 min to max 3 mg. Paeds may repeat once. Treat hypoxia first in children." },
+      p: { kg: 0.02, min: 0.1, max: 0.5 }, a: { fixed: 1 },
+      an: "Repeat every 3–5 min to max 3 mg (ACLS). If ineffective: pacing, adrenaline 2–10 mcg/min or dopamine 5–20 mcg/kg/min.",
+      pn: "May repeat once. Treat hypoxia and ventilate first.",
+      note: "" },
     { id: "mag", name: "Magnesium sulfate", cls: "other", cat: "arrest", ind: "Torsades / severe asthma / eclampsia", route: "IV", unit: "mg",
       concs: [{ l: "500 mg/ml (50%)", v: 500 }, { l: "100 mg/ml (10%)", v: 100 }],
       p: { kg: [25, 50], u: 40, max: 2000 }, a: { fixed: 2000 },
+      an: "Torsades (ACLS): 1–2 g. Asthma: 2 g.",
       note: "Over 10–20 min (bolus in pulseless torsades). Dilute 50% to ≤20% for IV. Eclampsia: 4 g over 5–15 min." },
 
     // ----- RSI -----
@@ -296,7 +307,7 @@ footer strong { color: var(--fg); }
       note: "Avoid: hyperkalaemia, burns or crush >24 h, neuromuscular disease, malignant hyperthermia history. Have atropine ready in children." },
     { id: "roc", name: "Rocuronium", cls: "nmb", cat: "rsi", ind: "Paralysis, non-depolarising", route: "IV", unit: "mg",
       concs: [{ l: "10 mg/ml", v: 10 }],
-      p: { kg: [1, 1.2], u: 1.2 }, a: { kg: 1.2 },
+      p: { kg: [1, 1.2], u: 1 }, a: { kg: 1.2 },
       note: "Onset ~60 s at 1.2 mg/kg; lasts 45–60 min. Reverse with sugammadex 16 mg/kg." },
     { id: "vec", name: "Vecuronium", cls: "nmb", cat: "rsi", ind: "Paralysis, non-depolarising", route: "IV", unit: "mg",
       concs: [{ l: "1 mg/ml (10 mg in 10 ml)", v: 1 }, { l: "2 mg/ml (10 mg in 5 ml)", v: 2 }],
@@ -378,6 +389,7 @@ footer strong { color: var(--fg); }
       concs: [{ l: "0.3 mg/kg in 50 ml (1 ml/h = 0.1 mcg/kg/min)", w: wt => 0.3 * wt * 1000 / 50, only: "p" },
               { l: "4 mg in 50 ml (80 mcg/ml)", v: 80 }, { l: "4 mg in 250 ml (16 mcg/ml)", v: 16 }],
       p: { r: [0.05, 1] }, a: { r: [0.05, 0.5] },
+      an: "Bradycardia (ACLS): 2–10 mcg/min.",
       note: "Central line preferred. Titrate to MAP / perfusion." },
     { id: "nor-inf", inf: true, name: "Noradrenaline", cls: "vaso", cat: "inf", ind: "Vasopressor (septic / vasodilatory shock)", route: "IV inf", ru: "mcg/kg/min",
       concs: [{ l: "0.3 mg/kg in 50 ml (1 ml/h = 0.1 mcg/kg/min)", w: wt => 0.3 * wt * 1000 / 50, only: "p" },
@@ -449,8 +461,10 @@ footer strong { color: var(--fg); }
       note: "Rectal tubes come in 5 mg and 10 mg; round to the nearest tube." },
     { id: "leve", name: "Levetiracetam", cls: "other", cat: "seiz", ind: "Status epilepticus, 2nd line", route: "IV", unit: "mg",
       concs: [{ l: "100 mg/ml", v: 100 }],
-      p: { kg: [40, 60], u: 40, max: 4500 }, a: { kg: 60, max: 4500 },
-      note: "Over 5–15 min. APLS: 40 mg/kg (max 3 g); ESETT: 60 mg/kg (max 4.5 g)." },
+      p: { kg: 40, max: 3000 }, a: { kg: 60, max: 4500 },
+      pn: "APLS: 40 mg/kg over 5 min (max 3 g).",
+      an: "ESETT/NICE: 60 mg/kg (max 4.5 g) over 10 min.",
+      note: "" },
     { id: "pheny", name: "Phenytoin", cls: "other", cat: "seiz", ind: "Status epilepticus, 2nd line", route: "IV", unit: "mg",
       concs: [{ l: "50 mg/ml", v: 50 }],
       p: { kg: 20, max: 2000 }, a: { kg: 20, max: 2000 },
@@ -506,8 +520,10 @@ footer strong { color: var(--fg); }
     // ----- Airway, asthma & anaphylaxis -----
     { id: "adr-im", name: "Adrenaline", cls: "vaso", cat: "resp", ind: "Anaphylaxis", route: "IM", unit: "mg",
       concs: [{ l: "1 mg/ml (1:1,000)", v: 1 }],
-      p: { kg: 0.01, max: 0.5 }, a: { fixed: 0.5 },
-      note: "Anterolateral thigh. Repeat after 5 min if no improvement. Age guide: <6 y 0.15 mg, 6–12 y 0.3 mg, >12 y 0.5 mg." },
+      p: { fn: pt => { const a = pt.ageY; if (a == null) return { kg: 0.01, basis: "0.01 mg/kg (enter age for APLS bands)" };
+             return a < 0.5 ? { fixed: [0.1, 0.15], basis: "<6 mo" } : a < 6 ? { fixed: 0.15, basis: "6 mo–5 y" } : a < 12 ? { fixed: 0.3, basis: "6–11 y" } : { fixed: 0.5, basis: "≥12 y (0.3 mg if small/prepubertal)" }; }, max: 0.5 },
+      a: { fixed: 0.5 },
+      note: "Anterolateral thigh. Repeat after 5 min if no improvement; after 2 doses start an adrenaline infusion (refractory anaphylaxis)." },
     { id: "adr-neb", name: "Adrenaline", cls: "vaso", cat: "resp", ind: "Croup / upper-airway oedema", route: "Neb", unit: "ml",
       p: { kg: 0.5, max: 5 }, a: { fixed: 5 },
       note: "Volume of 1 mg/ml (1:1,000) adrenaline, undiluted. Effect lasts ~2 h: observe for rebound." },
@@ -778,8 +794,10 @@ footer strong { color: var(--fg); }
         t += tile("Maintenance", `${fmt(Math.min(maint, 100))} ml/h`, "4-2-1 rule, max 100 ml/h");
       }
     } else {
-      t += tile("Defibrillation", "150–200 J", "Biphasic; follow device. Mono 360 J");
-      t += tile("Sync cardioversion", "120–150 J", "Flutter / SVT: 70–120 J");
+      t += tile("Defibrillation", "120–200 J", "Biphasic per device (ACLS); mono 360 J");
+      t += tile("Cardioversion: SVT / flutter", "50–100 J", "Synchronised, biphasic (ACLS)");
+      t += tile("Cardioversion: AF", "120–200 J", "Biphasic; mono 200 J");
+      t += tile("Cardioversion: VT", "100 J", "Monomorphic, with pulse");
       t += tile("ETT size", "7.0–8.0", "Female 7.0–7.5 · Male 7.5–8.0");
       t += tile("ETT depth (oral)", "21–23 cm", "At incisors: F 21, M 23");
       t += tile("Fluid bolus", "500 ml", "Crystalloid over <15 min, reassess");
