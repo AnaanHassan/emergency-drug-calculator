@@ -176,6 +176,105 @@ footer strong { color: var(--fg); }
   .find { display: flex; }
   .search { height: 46px; }
 }
+/* ---------- Code Blue: full-screen arrest timer and log ---------- */
+:root { --code: #c62828; --amber-bg: #ffe39a; --amber-fg: #4d3300; --ok-bg: #d9f2e1; --ok-fg: #0f4d2a; --shock: #ffb300; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --code: #c62828; --amber-bg: #5a4300; --amber-fg: #ffe08a; --ok-bg: #123a22; --ok-fg: #9be3b4; } }
+:root[data-theme="dark"] { --code: #c62828; --amber-bg: #5a4300; --amber-fg: #ffe08a; --ok-bg: #123a22; --ok-fg: #9be3b4; }
+
+.cb-entry { margin-top: 12px; width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; min-height: 56px;
+  background: var(--code); color: #fff; border: 0; border-radius: 10px; cursor: pointer; text-align: left; font-family: var(--font-body); }
+.cb-entry b { font: 700 22px/1 var(--font-display); letter-spacing: .08em; text-transform: uppercase; }
+.cb-entry span { font-size: 14px; opacity: .95; }
+.cb-entry .t { font: 600 20px var(--font-num); }
+
+.cb { position: fixed; inset: 0; z-index: 30; background: var(--bg); overflow-y: auto; overscroll-behavior: contain; }
+.cb-top { position: sticky; top: 0; z-index: 2; background: var(--code); color: #fff; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: calc(env(safe-area-inset-top, 0px) + 8px) max(16px, env(safe-area-inset-right, 0px)) 8px max(16px, env(safe-area-inset-left, 0px)); }
+.cb-top h2 { margin: 0; font: 700 22px/1 var(--font-display); letter-spacing: .08em; text-transform: uppercase; }
+.cb-top h2 { flex: 1; }
+.cb-top .who { font: 600 13px var(--font-num); order: 3; flex: 1 1 100%; min-width: 0; }
+.cb-top button { font: 600 14px var(--font-body); color: #fff; background: rgb(0 0 0 / .22); border: 1px solid rgb(255 255 255 / .45); border-radius: 8px; min-height: 40px; padding: 0 12px; cursor: pointer; }
+.cb-body { max-width: 900px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px;
+  padding: 12px max(16px, env(safe-area-inset-right, 0px)) calc(32px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); }
+.cb-h { font: 700 14px var(--font-display); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+
+.cb-timers { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.timer { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 6px; text-align: center; min-width: 0; }
+.timer .k { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.timer .t { font: 600 30px/1.15 var(--font-num); font-variant-numeric: tabular-nums; }
+.timer .s { font-size: 12px; color: var(--muted); min-height: 1.3em; }
+.timer.warn { background: var(--amber-bg); color: var(--amber-fg); border-color: transparent; }
+.timer.warn .k, .timer.warn .s, .timer.urgent .k, .timer.urgent .s, .timer.ok .k, .timer.ok .s { color: inherit; }
+.timer.urgent { background: var(--code); color: #fff; border-color: transparent; }
+.timer.ok { background: var(--ok-bg); color: var(--ok-fg); border-color: transparent; }
+.timer.flash { animation: flash 1s steps(1) infinite; }
+@keyframes flash { 50% { outline: 4px solid var(--code); outline-offset: 3px; } }
+
+.cb-prompts { display: flex; flex-direction: column; gap: 6px; }
+.pr { padding: 9px 12px; border-radius: 8px; font-size: 14.5px; font-weight: 600; border-left: 5px solid var(--muted); background: var(--surface); }
+.pr.urgent { border-color: var(--code); background: color-mix(in srgb, var(--code) 12%, var(--surface)); }
+.pr.warn { border-color: var(--shock); background: var(--amber-bg); color: var(--amber-fg); }
+.pr.ok { border-color: var(--ok-fg); background: var(--ok-bg); color: var(--ok-fg); }
+
+.rh { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.rh button { min-height: 52px; font: 700 14px/1.1 var(--font-body); border-radius: 8px; border: 2px solid var(--line); background: var(--surface); color: var(--fg); cursor: pointer; padding: 4px 2px; }
+.rh button small { display: block; font-size: 10.5px; font-weight: 600; color: var(--muted); margin-top: 2px; }
+.rh button.shk { border-color: var(--shock); }
+.rh button[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.rh button[aria-pressed="true"] small { color: inherit; }
+.rh button.rosc[aria-pressed="true"] { background: var(--ok-fg); border-color: var(--ok-fg); color: #fff; }
+
+.acts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.act { min-height: 76px; border-radius: 10px; border: 1px solid rgb(0 0 0 / .15); padding: 10px 12px; text-align: left; cursor: pointer; color: #111;
+  display: flex; flex-direction: column; justify-content: center; gap: 2px; font-family: var(--font-body); min-width: 0; }
+.act b { font: 700 18px/1.1 var(--font-display); letter-spacing: .04em; text-transform: uppercase; }
+.act span { font: 600 14px var(--font-num); overflow-wrap: anywhere; }
+.act small { font-size: 12px; opacity: .8; }
+.act.shock { background: var(--shock); }
+.act.neutral { background: var(--surface); color: var(--fg); border-color: var(--line); }
+.act:disabled { opacity: .45; cursor: not-allowed; }
+.energy { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+.energy input { width: 80px; height: 40px; font: 600 16px var(--font-num); padding: 0 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--input-bg); color: var(--fg); }
+
+.sbtns { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.sbtn { min-height: 46px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--fg); font: 600 13.5px/1.15 var(--font-body); cursor: pointer; padding: 4px 6px; }
+.sbtn small { display: block; font: 500 11.5px var(--font-num); color: var(--muted); }
+.inrow { display: flex; gap: 6px; }
+.inrow input { flex: 1; min-width: 0; height: 46px; font: 500 16px var(--font-body); padding: 0 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--input-bg); color: var(--fg); }
+.inrow input[type="number"] { flex: 0 0 110px; font-family: var(--font-num); }
+.inrow .sbtn { flex: none; padding: 0 14px; }
+
+.ht { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.ht label { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 4px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); font-size: 14px; cursor: pointer; }
+.ht input { width: 20px; height: 20px; accent-color: var(--ok-fg); flex: none; }
+.ht label.done { background: var(--ok-bg); color: var(--ok-fg); border-color: transparent; }
+
+.log { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); overflow: hidden; }
+.log li { border-top: 1px solid var(--line); }
+.log li:first-child { border-top: 0; }
+.log .row { width: 100%; display: grid; grid-template-columns: auto auto 1fr; gap: 10px; align-items: baseline; padding: 9px 12px; background: none; border: 0; color: var(--fg); text-align: left; cursor: pointer; font: 14px var(--font-body); }
+.log .ct { font: 600 13.5px var(--font-num); }
+.log .el { font: 500 12px var(--font-num); color: var(--muted); }
+.log .lb { min-width: 0; overflow-wrap: anywhere; }
+.log .lb small { color: var(--muted); }
+.log .k-shock .lb { font-weight: 700; }
+.log .k-drug .lb, .log .k-rhythm .lb { font-weight: 600; }
+.log .edit { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 0 12px 10px; }
+.log .edit input { height: 40px; font: 600 16px var(--font-num); padding: 0 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--input-bg); color: var(--fg); }
+.log-tools { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+.danger { color: var(--code) !important; border-color: var(--code) !important; }
+.armed { background: var(--code) !important; color: #fff !important; border-color: var(--code) !important; }
+.summary { width: 100%; min-height: 220px; font: 13px/1.45 var(--font-num); padding: 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--input-bg); color: var(--fg); resize: vertical; }
+.ends { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.ends .sbtn { min-height: 54px; font-size: 14.5px; }
+.cb-note { font-size: 12.5px; color: var(--muted); margin: 0; }
+
+@media (max-width: 420px) {
+  .timer .t { font-size: 25px; }
+  .rh button { font-size: 13px; }
+  .act b { font-size: 16px; }
+}
+@media (prefers-reduced-motion: reduce) { .timer.flash { animation: none; outline: 4px solid var(--code); } }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 
@@ -197,6 +296,7 @@ footer strong { color: var(--fg); }
 </div>
 
 <main class="wrap">
+  <button class="cb-entry" id="cb-entry"><b>Code Blue</b><span id="cb-entry-txt">Start arrest timer &amp; log</span></button>
   <div class="status" id="status"></div>
   <div id="alerts"></div>
   <div class="tiles" id="tiles"></div>
@@ -215,6 +315,16 @@ footer strong { color: var(--fg); }
     <p>Estimated weight uses the APLS formulas: 0–12 months (0.5 × months) + 4; 1–5 years (2 × age) + 8; 6–12 years (3 × age) + 7. Weigh the child when you can. Card colours follow the ISO 26825 user-applied syringe label scheme.</p>
   </footer>
 </main>
+
+<section class="cb" id="cb" role="dialog" aria-modal="true" aria-label="Code Blue" hidden>
+  <div class="cb-top">
+    <h2>Code Blue</h2>
+    <div class="who" id="cb-who"></div>
+    <button id="cb-sound" aria-pressed="true">Sound on</button>
+    <button id="cb-close">Close</button>
+  </div>
+  <div class="cb-body" id="cb-body"></div>
+</section>
 
 <script>
 (function () {
@@ -851,6 +961,301 @@ footer strong { color: var(--fg); }
   }
 
   function save() { store.set("mode", state.mode); store.set("y", state.y); store.set("m", state.m); store.set("wt", state.wt); store.set("conc", state.conc); }
+
+  // ---------- Code Blue ----------
+  // The code is a list of timestamped events; counts, timers and prompts are all derived from it,
+  // so Undo, deleting a row or editing a time keeps everything consistent. Saved on this device only.
+  const CYCLE_MS = 120000;
+  const RHYTHMS = [["VF", "VF", true], ["pVT", "pVT", true], ["PEA", "PEA", false], ["Asystole", "Asystole", false], ["ROSC", "ROSC", false]];
+  const RHYTHM_NAME = { VF: "VF", pVT: "Pulseless VT", PEA: "PEA", Asystole: "Asystole", ROSC: "ROSC" };
+  const HT = ["Hypoxia", "Hypovolaemia", "Hypo/hyperkalaemia, metabolic", "Hypothermia", "Thrombosis (coronary / PE)", "Tension pneumothorax", "Tamponade", "Toxins"];
+  const PROCS = ["IV access", "IO access", "BVM ventilation", "Supraglottic airway", "Intubated", "Waveform capnography", "Pulse check", "Mechanical CPR", "Blood glucose checked"];
+  const MORE = ["lido-arrest", "cacl", "caglu", "bicarb", "mag", "dex10", "atro-brady"];
+
+  let code = store.get("code", null);
+  let sound = store.get("cbSound", true), audio = null, wakeLock = null, editIdx = null, lastPromptHtml = "", alertedCycle = null;
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const clock = t => new Date(t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
+  const mmss = ms => { const s = Math.max(0, Math.floor(ms / 1000)), m = Math.floor(s / 60); return String(m).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0"); };
+  const saveCode = () => store.set("code", code);
+  const cbPt = () => ({ mode: code.mode, wt: code.wt, est: code.est, ageY: code.ageY });
+  const sorted = () => code.events.slice().sort((a, b) => a.t - b.t);
+
+  function derive() {
+    const d = { shocks: 0, adr: [], amio: 0, rhythm: null, lastRhythmT: null, lastShockT: null, ended: null, cycleStart: code.events[0].t, hst: {} };
+    for (const e of sorted()) {
+      if (e.type === "shock") { d.shocks++; d.lastShockT = e.t; d.cycleStart = e.t; }
+      else if (e.type === "rhythm") { d.rhythm = e.v; d.lastRhythmT = e.t; d.cycleStart = e.t; }
+      else if (e.type === "cpr") d.cycleStart = e.t;
+      else if (e.type === "drug" && e.id === "adr-arrest") d.adr.push(e.t);
+      else if (e.type === "drug" && e.id === "amio-arrest") d.amio++;
+      else if (e.type === "hst") d.hst[e.v] = e.on;
+      else if (e.type === "end") d.ended = e;
+    }
+    d.shockable = d.rhythm === "VF" || d.rhythm === "pVT";
+    d.rosc = d.rhythm === "ROSC";
+    return d;
+  }
+
+  // Dose for a drug card, using the code's weight and the concentration chosen on the calculator
+  function cbDose(id, second) {
+    const d = DRUGS.find(x => x.id === id), pt = cbPt();
+    const spec = pt.mode === "p" ? d.p : d.a;
+    const r = spec && evalBolus(spec, pt, d.unit);
+    if (!r || r.text || r.needWt) return { ok: false, txt: r && r.text ? r.text : "Enter weight" };
+    let v = r.u != null ? r.u : r.lo;
+    if (second && id === "amio-arrest" && pt.mode === "a") v = 150;
+    const list = concsFor(d, pt.mode), c = list[state.conc[id + ":" + pt.mode] || 0] || list[0];
+    const vol = d.unit === "ml" ? null : c ? v / c.v : null;
+    return { ok: true, name: d.name, txt: `${fmt(v)} ${d.unit}` + (vol != null ? ` = ${fmtVol(vol)} ml` : ""), conc: c ? c.l : "" };
+  }
+  const energyJ = () => code.energy || (code.mode === "p" && code.wt ? Math.min(Math.round(4 * code.wt), 200) : 200);
+
+  function addEvent(e) {
+    if (!code) return;
+    code.events.push(Object.assign({ t: Date.now() }, e));
+    editIdx = null; saveCode(); cbRender();
+  }
+
+  function prompts(d) {
+    const out = [], p = code.mode === "p";
+    if (d.ended) return out;
+    const adr = cbDose("adr-arrest");
+    if (!d.rhythm) out.push(["info", p ? "Start CPR 15:2. Attach defibrillator and check rhythm." : "Start CPR 30:2. Attach defibrillator and check rhythm."]);
+    else if (d.rosc) out.push(["ok", "ROSC: ABCDE, SpO₂ 94–98%, 12-lead ECG, treat the cause, avoid hypotension."]);
+    else if (d.shockable) {
+      if (!d.lastShockT || d.lastShockT < d.lastRhythmT) out.push(["urgent", `Shock ${d.shocks + 1}: ${energyJ()} J, then resume CPR immediately`]);
+      const adrAfter = p ? 3 : 2;
+      if (d.shocks >= adrAfter && !d.adr.length) out.push(["urgent", `Adrenaline now (after shock ${adrAfter}, ${p ? "APLS" : "ACLS"}): ${adr.txt}`]);
+      if (d.shocks >= 3 && d.amio === 0) out.push(["urgent", `Amiodarone now (after shock 3): ${cbDose("amio-arrest").txt}`]);
+      else if (d.shocks >= 5 && d.amio === 1) out.push(["urgent", `Amiodarone 2nd dose (after shock 5): ${cbDose("amio-arrest", true).txt}`]);
+    } else if (!d.adr.length) out.push(["urgent", `Non-shockable: adrenaline now: ${adr.txt}`]);
+    if (!d.rosc && d.adr.length) {
+      const since = Date.now() - d.adr[d.adr.length - 1];
+      if (since >= 180000) out.push([since >= 300000 ? "urgent" : "warn", `Adrenaline due (every 3–5 min): ${adr.txt}`]);
+    }
+    if (!d.rosc && d.rhythm) {
+      const n = HT.filter(h => d.hst[h]).length;
+      if (n < HT.length) out.push(["info", `Reversible causes: ${n} of 8 reviewed`]);
+    }
+    return out;
+  }
+
+  function summary() {
+    const d = derive(), ev = sorted(), start = ev[0].t, end = d.ended ? d.ended.t : Date.now();
+    const pt = cbPt();
+    const lines = ["CODE BLUE SUMMARY",
+      `${pt.mode === "p" ? "Paediatric" : "Adult"}${pt.wt ? " · " + fmt(pt.wt) + " kg" + (pt.est ? " (estimated from age)" : "") : " · weight not recorded"}${pt.ageY != null ? " · age " + (pt.ageY < 1 ? Math.round(pt.ageY * 12) + " mo" : Math.floor(pt.ageY) + " y") : ""}`,
+      `Started ${clock(start)}${d.ended ? " · ended " + clock(end) : " · ongoing"} · duration ${mmss(end - start)}`,
+      d.ended ? `Outcome: ${d.ended.label.replace(/^Ended: /, "")}${d.ended.detail ? " · " + d.ended.detail : ""}` :`Current rhythm: ${d.rhythm ? RHYTHM_NAME[d.rhythm] : "not recorded"}`,
+      `Shocks: ${d.shocks} · Adrenaline: ${d.adr.length} dose${d.adr.length === 1 ? "" : "s"} · Amiodarone: ${d.amio} dose${d.amio === 1 ? "" : "s"}`,
+      `Reversible causes reviewed: ${HT.filter(h => d.hst[h]).join(", ") || "none recorded"}`,
+      "", "TIMELINE"];
+    for (const e of ev) lines.push(`${clock(e.t)} (+${mmss(e.t - start)}) ${e.label}${e.detail ? " — " + e.detail : ""}`);
+    lines.push("", "Recorded on Resus Dose Calculator. Transcribe into the patient record.");
+    return lines.join("\n");
+  }
+
+  function confirmBtn(act, label, extra) {
+    return `<button class="sbtn ${extra || ""}" data-act="${act}" data-confirm="1" data-label="${esc(label)}">${label}</button>`;
+  }
+
+  function cbRender() {
+    if (!code) return;
+    const d = derive(), pt = cbPt(), p = code.mode === "p", ended = !!d.ended, dis = ended ? " disabled" : "";
+    $("cb-who").textContent = `${p ? "PAEDS" : "ADULT"} · ${pt.wt ? fmt(pt.wt) + " kg" + (pt.est ? " (est)" : "") : "no weight"} · started ${clock(code.events[0].t)}`;
+    $("cb-sound").textContent = sound ? "Sound on" : "Sound off";
+    $("cb-sound").setAttribute("aria-pressed", sound);
+
+    const adr = cbDose("adr-arrest"), amio = cbDose("amio-arrest", d.amio >= 1);
+    let h = `<div class="cb-timers">
+        <div class="timer" id="tm-total"><div class="k">Code time</div><div class="t">00:00</div><div class="s"></div></div>
+        <div class="timer" id="tm-cycle"><div class="k">CPR cycle</div><div class="t">02:00</div><div class="s"></div></div>
+        <div class="timer" id="tm-adr"><div class="k">Since adrenaline</div><div class="t">–</div><div class="s"></div></div>
+      </div>
+      <div class="cb-prompts" id="cb-prompts" aria-live="polite"></div>`;
+
+    if (ended) {
+      h += `<div><h3 class="cb-h">Code ended · ${esc(d.ended.label)}</h3>
+        <textarea class="summary" id="cb-summary" readonly>${esc(summary())}</textarea>
+        <div class="log-tools" style="margin-top:8px"><button class="sbtn" data-act="copy">Copy summary</button>${confirmBtn("undo", "Undo end (resume)")}${confirmBtn("new", "Clear & new code", "danger")}</div>
+        <p class="cb-note">Saved on this device only. Copy it into the patient record before clearing.</p></div>`;
+    }
+
+    h += `<div><h3 class="cb-h">Rhythm check</h3><div class="rh">` +
+      RHYTHMS.map(([v, l, shk]) => `<button data-act="rhythm" data-v="${v}" class="${shk ? "shk" : ""}${v === "ROSC" ? " rosc" : ""}" aria-pressed="${d.rhythm === v}"${dis}>${l}<small>${shk ? "Shockable" : v === "ROSC" ? "Pulse back" : "Non-shock"}</small></button>`).join("") +
+      `</div></div>`;
+
+    h += `<div><h3 class="cb-h">Actions</h3><div class="acts">
+        <button class="act shock" data-act="shock"${dis}><b>Shock ${d.shocks + 1}</b><span>${energyJ()} J</span><small>${p ? "4 J/kg" : "Biphasic 120–200 J per device"}</small></button>
+        <button class="act c-vaso" data-act="drug" data-id="adr-arrest"${dis}><b>Adrenaline</b><span>${esc(adr.txt)}</span><small>${esc(adr.conc || "")} · given ${d.adr.length}×</small></button>
+        <button class="act c-other" data-act="drug" data-id="amio-arrest" data-second="${d.amio >= 1 ? 1 : ""}"${dis}><b>Amiodarone ${d.amio >= 1 ? "2nd" : "1st"}</b><span>${esc(amio.txt)}</span><small>After shocks 3 and 5 · given ${d.amio}×</small></button>
+        <button class="act neutral" data-act="cpr"${dis}><b>Restart CPR cycle</b><span>2:00</span><small>Resets the rhythm-check timer</small></button>
+      </div>
+      <div class="energy" style="margin-top:8px"><label for="cb-energy">Shock energy (J)</label><input id="cb-energy" type="number" inputmode="numeric" min="1" max="360" value="${energyJ()}"${dis}></div></div>`;
+
+    h += `<div><h3 class="cb-h">Other drugs</h3><div class="sbtns">` +
+      MORE.map(id => { const x = cbDose(id), dd = DRUGS.find(z => z.id === id); return `<button class="sbtn" data-act="drug" data-id="${id}"${dis}>${esc(dd.name.replace(" 10%", "").replace("Calcium ", "Ca "))}<small>${esc(x.txt)}</small></button>`; }).join("") +
+      `<button class="sbtn" data-act="fluid"${dis}>Fluid bolus<small>${p ? (pt.wt ? fmt(Math.round(10 * pt.wt)) + " ml (10 ml/kg)" : "10 ml/kg") : "500 ml"}</small></button>
+      </div></div>`;
+
+    h += `<div><h3 class="cb-h">Airway, access &amp; monitoring</h3><div class="sbtns">` +
+      PROCS.map(x => `<button class="sbtn" data-act="proc" data-v="${esc(x)}"${dis}>${esc(x)}</button>`).join("") + `</div>
+      <div class="inrow" style="margin-top:8px"><input id="cb-etco2" type="number" inputmode="numeric" placeholder="ETCO₂ mmHg" aria-label="ETCO2 in mmHg"${dis}><button class="sbtn" data-act="etco2"${dis}>Log ETCO₂</button></div>
+      <div class="inrow" style="margin-top:6px"><input id="cb-note" type="text" placeholder="Note (e.g. family informed, drug given)" aria-label="Note" enterkeyhint="done"${dis}><button class="sbtn" data-act="note"${dis}>Add</button></div>
+      <div class="inrow" style="margin-top:6px"><input id="cb-wt" type="number" inputmode="decimal" placeholder="Update weight kg" aria-label="Update weight in kg"${dis}><button class="sbtn" data-act="weight"${dis}>Set weight</button></div></div>`;
+
+    h += `<div><h3 class="cb-h">Reversible causes · 4 Hs &amp; 4 Ts</h3><div class="ht">` +
+      HT.map(x => `<label class="${d.hst[x] ? "done" : ""}"><input type="checkbox" data-ht="${esc(x)}"${d.hst[x] ? " checked" : ""}${dis}>${esc(x)}</label>`).join("") + `</div></div>`;
+
+    const ev = sorted(), start = ev[0].t;
+    h += `<div><h3 class="cb-h">Event log</h3><div class="log-tools">
+        <button class="sbtn" data-act="undo-last"${code.events.length > 1 ? "" : " disabled"}>Undo last</button>
+        <button class="sbtn" data-act="copy-live">Copy summary</button></div>
+      <ol class="log" reversed>` +
+      ev.slice().reverse().map(e => {
+        const i = code.events.indexOf(e), open = editIdx === i, t = new Date(e.t);
+        return `<li class="k-${e.type}"><button class="row" data-act="edit" data-i="${i}"><span class="ct">${clock(e.t)}</span><span class="el">+${mmss(e.t - start)}</span><span class="lb">${esc(e.label)}${e.detail ? ` <small>${esc(e.detail)}</small>` : ""}</span></button>` +
+          (open && e.type !== "start" ? `<div class="edit"><label for="ed-t">Time</label><input id="ed-t" type="time" step="1" value="${[t.getHours(), t.getMinutes(), t.getSeconds()].map(n => String(n).padStart(2, "0")).join(":")}" data-i="${i}">${confirmBtn("del", "Delete entry", "danger")}</div>` : "") + `</li>`;
+      }).join("") + `</ol><p class="cb-note">Tap an entry to correct its time or delete it.</p></div>`;
+
+    if (!ended) {
+      h += `<div><h3 class="cb-h">End code</h3><div class="ends">${confirmBtn("end-rosc", "End: sustained ROSC")}${confirmBtn("end-stop", "End: resuscitation stopped", "danger")}</div>
+        <p class="cb-note" style="margin-top:6px">Saved on this device only, so a refresh won't lose it. Not a substitute for the official record.</p></div>`;
+    }
+    $("cb-body").innerHTML = h;
+    lastPromptHtml = "";
+    cbTick();
+  }
+
+  function setTimer(id, t, s, cls) {
+    const el = $(id); if (!el) return;
+    el.querySelector(".t").textContent = t; el.querySelector(".s").textContent = s;
+    el.className = "timer" + (cls ? " " + cls : "");
+  }
+
+  function beep() {
+    if (!sound) return;
+    try {
+      audio = audio || new (window.AudioContext || window.webkitAudioContext)();
+      [0, 0.35, 0.7].forEach(off => {
+        const o = audio.createOscillator(), g = audio.createGain(), t0 = audio.currentTime + off;
+        o.frequency.value = 880; o.connect(g); g.connect(audio.destination);
+        g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.5, t0 + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.25);
+        o.start(t0); o.stop(t0 + 0.3);
+      });
+    } catch (e) {}
+    try { navigator.vibrate && navigator.vibrate([300, 150, 300]); } catch (e) {}
+  }
+
+  function cbTick() {
+    const entryTxt = $("cb-entry-txt");
+    if (!code) { entryTxt.textContent = "Start arrest timer & log"; return; }
+    const d = derive(), start = code.events[0].t, nowT = d.ended ? d.ended.t : Date.now();
+    entryTxt.innerHTML = d.ended ? `${esc(d.ended.label)} · <u>View summary</u>` : `In progress <span class="t">${mmss(nowT - start)}</span> · Open`;
+    if ($("cb").hidden) { if (!d.ended && !d.rosc && Date.now() - d.cycleStart >= CYCLE_MS && alertedCycle !== d.cycleStart) { alertedCycle = d.cycleStart; beep(); } return; }
+
+    setTimer("tm-total", mmss(nowT - start), d.ended ? "Ended" : clock(start) + " start", d.ended ? "" : "");
+    if (d.ended || d.rosc) setTimer("tm-cycle", "–", d.rosc ? "ROSC" : "Ended", d.rosc ? "ok" : "");
+    else {
+      const left = CYCLE_MS - (Date.now() - d.cycleStart);
+      if (left <= 0) {
+        setTimer("tm-cycle", "00:00", "CHECK RHYTHM", "urgent flash");
+        if (alertedCycle !== d.cycleStart) { alertedCycle = d.cycleStart; beep(); }
+      } else setTimer("tm-cycle", mmss(left + 999), "Next rhythm check", left <= 15000 ? "warn" : "");
+    }
+    if (!d.adr.length) setTimer("tm-adr", "–", "None given", "");
+    else {
+      const since = nowT - d.adr[d.adr.length - 1];
+      const cls = d.ended || d.rosc ? "" : since >= 300000 ? "urgent" : since >= 180000 ? "warn" : "ok";
+      setTimer("tm-adr", mmss(since), `${d.adr.length} dose${d.adr.length === 1 ? "" : "s"}${!d.ended && since >= 180000 ? " · due" : ""}`, cls);
+    }
+    const ph = prompts(d).map(([c, t]) => `<div class="pr ${c}">${esc(t)}</div>`).join("");
+    if (ph !== lastPromptHtml) { lastPromptHtml = ph; const el = $("cb-prompts"); if (el) el.innerHTML = ph; }
+  }
+
+  async function keepAwake() {
+    try { if (code && !derive().ended && "wakeLock" in navigator && (!wakeLock || wakeLock.released)) wakeLock = await navigator.wakeLock.request("screen"); } catch (e) {}
+  }
+  function openCode() { $("cb").hidden = false; document.body.style.overflow = "hidden"; cbRender(); keepAwake(); }
+  function closeCode() { $("cb").hidden = true; document.body.style.overflow = ""; cbTick(); }
+
+  function startCode() {
+    const pt = patient();
+    code = { mode: pt.mode, wt: pt.wt, est: pt.est, ageY: pt.ageY, energy: null,
+      events: [{ t: Date.now(), type: "start", label: "Code started", detail: `${pt.mode === "p" ? "Paediatric" : "Adult"}${pt.wt ? ", " + fmt(pt.wt) + " kg" + (pt.est ? " (est)" : "") : ""}` }] };
+    try { audio = audio || new (window.AudioContext || window.webkitAudioContext)(); audio.resume && audio.resume(); } catch (e) {}
+    saveCode(); openCode();
+  }
+
+  // Two-tap confirm for destructive or final actions (the viewer has no confirm() dialog)
+  function armed(btn) {
+    if (!btn.dataset.confirm || btn.classList.contains("armed")) return true;
+    btn.classList.add("armed"); btn.textContent = "Tap again to confirm";
+    setTimeout(() => { if (btn.isConnected) { btn.classList.remove("armed"); btn.textContent = btn.dataset.label; } }, 3000);
+    return false;
+  }
+
+  function copyText(text, btn) {
+    const done = () => { btn.textContent = "Copied"; setTimeout(() => { if (btn.isConnected) btn.textContent = "Copy summary"; }, 2000); };
+    const fallback = () => {
+      let ta = $("cb-summary");
+      if (!ta) { ta = document.createElement("textarea"); ta.className = "summary"; ta.id = "cb-summary"; ta.readOnly = true; btn.closest("div").after(ta); }
+      ta.value = text; ta.focus(); ta.select(); btn.textContent = "Selected: copy it";
+    };
+    try { navigator.clipboard.writeText(text).then(done, fallback); } catch (e) { fallback(); }
+  }
+
+  $("cb-body").addEventListener("click", e => {
+    const b = e.target.closest("button[data-act]"); if (!b || b.disabled) return;
+    const act = b.dataset.act, d = derive();
+    if (!armed(b)) return;
+    if (act === "rhythm") addEvent({ type: "rhythm", v: b.dataset.v, label: b.dataset.v === "ROSC" ? "ROSC" : "Rhythm: " + RHYTHM_NAME[b.dataset.v] });
+    else if (act === "shock") addEvent({ type: "shock", label: `Shock ${d.shocks + 1}`, detail: `${energyJ()} J${d.rhythm ? " · " + RHYTHM_NAME[d.rhythm] : ""}` });
+    else if (act === "drug") {
+      const x = cbDose(b.dataset.id, !!b.dataset.second), dd = DRUGS.find(z => z.id === b.dataset.id);
+      const n = b.dataset.id === "adr-arrest" ? ` #${d.adr.length + 1}` : b.dataset.id === "amio-arrest" ? ` #${d.amio + 1}` : "";
+      addEvent({ type: "drug", id: b.dataset.id, label: dd.name + n, detail: x.txt + (x.conc ? " of " + x.conc : "") + " " + dd.route });
+    }
+    else if (act === "fluid") addEvent({ type: "drug", id: "fluid", label: "Fluid bolus", detail: code.mode === "p" ? (code.wt ? fmt(Math.round(10 * code.wt)) + " ml" : "10 ml/kg") : "500 ml" });
+    else if (act === "cpr") addEvent({ type: "cpr", label: "CPR cycle restarted" });
+    else if (act === "proc") addEvent({ type: "proc", label: b.dataset.v });
+    else if (act === "etco2") { const v = parseFloat($("cb-etco2").value); if (v >= 0) addEvent({ type: "etco2", label: `ETCO₂ ${fmt(v)} mmHg` }); }
+    else if (act === "note") { const v = $("cb-note").value.trim(); if (v) addEvent({ type: "note", label: v }); }
+    else if (act === "weight") { const v = parseFloat($("cb-wt").value); if (v > 0) { code.wt = v; code.est = false; code.energy = null; addEvent({ type: "note", label: `Weight updated to ${fmt(v)} kg` }); } }
+    else if (act === "undo-last" || act === "undo") {
+      // "Undo last" removes the most recently entered event; "Undo end" removes the end event to resume the code
+      const idx = act === "undo" ? code.events.findIndex(ev => ev.type === "end") : code.events.length - 1;
+      if (idx > 0) { code.events.splice(idx, 1); editIdx = null; saveCode(); cbRender(); keepAwake(); }
+    }
+    else if (act === "edit") { const i = +b.dataset.i; editIdx = editIdx === i ? null : i; cbRender(); }
+    else if (act === "del") { if (editIdx > 0) { code.events.splice(editIdx, 1); editIdx = null; saveCode(); cbRender(); } }
+    else if (act === "end-rosc") addEvent({ type: "end", label: "Ended: sustained ROSC" });
+    else if (act === "end-stop") addEvent({ type: "end", label: "Ended: resuscitation stopped", detail: "Time of death " + clock(Date.now()) });
+    else if (act === "copy" || act === "copy-live") copyText(summary(), b);
+    else if (act === "new") { code = null; store.set("code", null); closeCode(); }
+  });
+  $("cb-body").addEventListener("change", e => {
+    const t = e.target;
+    if (t.matches("[data-ht]")) addEvent({ type: "hst", v: t.dataset.ht, on: t.checked, label: (t.checked ? "Reviewed: " : "Un-ticked: ") + t.dataset.ht });
+    else if (t.id === "cb-energy") { const v = parseFloat(t.value); code.energy = v > 0 ? v : null; saveCode(); cbRender(); }
+    else if (t.id === "ed-t" && t.value) {
+      const i = +t.dataset.i, old = new Date(code.events[i].t), [hh, mi, ss] = t.value.split(":").map(Number);
+      old.setHours(hh, mi, ss || 0, 0); code.events[i].t = old.getTime(); saveCode(); cbRender();
+    }
+  });
+  $("cb-body").addEventListener("keydown", e => {
+    if (e.key !== "Enter") return;
+    const map = { "cb-note": "note", "cb-etco2": "etco2", "cb-wt": "weight" }, act = map[e.target.id];
+    if (act) { e.preventDefault(); $("cb-body").querySelector(`[data-act="${act}"]`).click(); }
+  });
+
+  $("cb-entry").onclick = () => code ? openCode() : startCode();
+  $("cb-close").onclick = closeCode;
+  $("cb-sound").onclick = () => { sound = !sound; store.set("cbSound", sound); if (sound) beep(); cbRender(); };
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) { keepAwake(); cbTick(); } });
+  setInterval(cbTick, 250);
+  if (code && !derive().ended) openCode(); else cbTick();
 
   // ---------- Events ----------
   $("age-y").value = state.y; $("age-m").value = state.m; $("wt").value = state.wt;
