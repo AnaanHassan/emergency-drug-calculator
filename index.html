@@ -224,6 +224,22 @@ footer strong { color: var(--fg); }
 .pr.warn { border-color: var(--shock); background: var(--amber-bg); color: var(--amber-fg); }
 .pr.ok { border-color: var(--ok-fg); background: var(--ok-bg); color: var(--ok-fg); }
 
+.step { background: var(--surface); border: 2px solid var(--fg); border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; }
+.step-h { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.step-h b { font: 700 13px var(--font-display); letter-spacing: .12em; text-transform: uppercase; background: var(--fg); color: var(--bg); padding: 2px 7px; border-radius: 4px; }
+.step-h span { font: 700 17px/1.2 var(--font-display); letter-spacing: .03em; text-transform: uppercase; flex: 1; min-width: 0; }
+.step-h em { font: 600 11px var(--font-num); font-style: normal; color: var(--muted); }
+.step ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 5px; }
+.step .now li { padding: 8px 10px; border-radius: 7px; font-size: 15px; font-weight: 600; border-left: 5px solid var(--muted); background: var(--bg); }
+.step .now li.urgent { border-color: var(--code); background: color-mix(in srgb, var(--code) 12%, var(--surface)); }
+.step .now li.warn { border-color: var(--shock); background: var(--amber-bg); color: var(--amber-fg); }
+.step .now li.ok { border-color: var(--ok-fg); background: var(--ok-bg); color: var(--ok-fg); }
+.then-h { font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-top: 2px; }
+.step .then li { font-size: 14px; padding-left: 18px; position: relative; }
+.step .then li::before { content: "→"; position: absolute; left: 0; color: var(--muted); }
+.during { display: flex; flex-wrap: wrap; gap: 6px; }
+.during span { font-size: 12.5px; font-weight: 600; padding: 4px 9px; border-radius: 999px; border: 1px dashed var(--muted); color: var(--muted); }
+.during span.done { border: 1px solid transparent; background: var(--ok-bg); color: var(--ok-fg); }
 .rh { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
 .rh button { min-height: 52px; font: 700 14px/1.1 var(--font-body); border-radius: 8px; border: 2px solid var(--line); background: var(--surface); color: var(--fg); cursor: pointer; padding: 4px 2px; }
 .rh button small { display: block; font-size: 10.5px; font-weight: 600; color: var(--muted); margin-top: 2px; }
@@ -991,7 +1007,7 @@ footer strong { color: var(--fg); }
   const sorted = () => code.events.slice().sort((a, b) => a.t - b.t);
 
   function derive() {
-    const d = { shocks: 0, adr: [], amio: 0, rhythm: null, lastRhythmT: null, lastShockT: null, ended: null, cycleStart: code.events[0].t, hst: {} };
+    const d = { shocks: 0, adr: [], amio: 0, rhythm: null, lastRhythmT: null, lastShockT: null, ended: null, cycleStart: code.events[0].t, hst: {}, procs: {} };
     for (const e of sorted()) {
       if (e.type === "shock") { d.shocks++; d.lastShockT = e.t; d.cycleStart = e.t; }
       else if (e.type === "rhythm") { d.rhythm = e.v; d.lastRhythmT = e.t; d.cycleStart = e.t; }
@@ -999,6 +1015,8 @@ footer strong { color: var(--fg); }
       else if (e.type === "drug" && e.id === "adr-arrest") d.adr.push(e.t);
       else if (e.type === "drug" && e.id === "amio-arrest") d.amio++;
       else if (e.type === "hst") d.hst[e.v] = e.on;
+      else if (e.type === "proc") d.procs[e.label] = true;
+      else if (e.type === "etco2") d.procs["Waveform capnography"] = true;
       else if (e.type === "end") d.ended = e;
     }
     d.shockable = d.rhythm === "VF" || d.rhythm === "pVT";
@@ -1026,28 +1044,103 @@ footer strong { color: var(--fg); }
     editIdx = null; saveCode(); cbRender();
   }
 
-  function prompts(d) {
-    const out = [], p = code.mode === "p";
-    if (d.ended) return out;
-    const adr = cbDose("adr-arrest");
-    if (!d.rhythm) out.push(["info", p ? "Start CPR 15:2. Attach defibrillator and check rhythm." : "Start CPR 30:2. Attach defibrillator and check rhythm."]);
-    else if (d.rosc) out.push(["ok", "ROSC: ABCDE, SpO₂ 94–98%, 12-lead ECG, treat the cause, avoid hypotension."]);
-    else if (d.shockable) {
-      if (!d.lastShockT || d.lastShockT < d.lastRhythmT) out.push(["urgent", `Shock ${d.shocks + 1}: ${energyJ()} J, then resume CPR immediately`]);
-      const adrAfter = p ? 3 : 2;
-      if (d.shocks >= adrAfter && !d.adr.length) out.push(["urgent", `Adrenaline now (after shock ${adrAfter}, ${p ? "APLS" : "ACLS"}): ${adr.txt}`]);
-      if (d.shocks >= 3 && d.amio === 0) out.push(["urgent", `Amiodarone now (after shock 3): ${cbDose("amio-arrest").txt}`]);
-      else if (d.shocks >= 5 && d.amio === 1) out.push(["urgent", `Amiodarone 2nd dose (after shock 5): ${cbDose("amio-arrest", true).txt}`]);
-    } else if (!d.adr.length) out.push(["urgent", `Non-shockable: adrenaline now: ${adr.txt}`]);
-    if (!d.rosc && d.adr.length) {
-      const since = Date.now() - d.adr[d.adr.length - 1];
-      if (since >= 180000) out.push([since >= 300000 ? "urgent" : "warn", `Adrenaline due (every 3–5 min): ${adr.txt}`]);
+  // Next-step guide: where the team is in the ACLS (adult) or APLS (paediatric) cardiac arrest algorithm,
+  // what to do now, what follows at the next rhythm check, and the "during CPR" checklist
+  function steps(d) {
+    if (d.ended) return null;
+    const p = code.mode === "p", std = p ? "APLS" : "ACLS", nowT = Date.now(), E = energyJ();
+    const adr = cbDose("adr-arrest").txt, amio1 = cbDose("amio-arrest").txt, amio2 = cbDose("amio-arrest", true).txt;
+    const adrAfter = p ? 3 : 2, k = d.shocks + 1;
+    const left = CYCLE_MS - (nowT - d.cycleStart);
+    const cyc = left > 0 ? `next rhythm check in ${mmss(left + 999)}` : "rhythm check now";
+    const lastAdr = d.adr.length ? d.adr[d.adr.length - 1] : null, sinceAdr = lastAdr ? nowT - lastAdr : 0;
+    const s = { title: "", std, now: [], then: [], during: [] };
+    const adrRepeat = () => {
+      if (!lastAdr) return;
+      if (sinceAdr >= 180000) s.now.push([sinceAdr >= 300000 ? "urgent" : "warn", `Adrenaline ${adr}: due (every 3–5 min${p ? ", alternate cycles" : ""})`]);
+      else s.then.push(`Next adrenaline from ${clock(lastAdr + 180000)} (in ${mmss(180000 - sinceAdr + 999)})`);
+    };
+
+    if (!d.rhythm) {
+      s.title = "Start resuscitation";
+      if (p) s.now.push(["urgent", "Open airway: 5 rescue breaths"], ["urgent", "CPR 15:2 at 100–120/min, high-flow oxygen"]);
+      else s.now.push(["urgent", "CPR 30:2 at 100–120/min, give oxygen"]);
+      s.now.push(["info", "Attach defibrillator pads / monitor; minimise pauses"]);
+      s.then.push("Rhythm check: select VF / pVT (shockable) or PEA / asystole (non-shockable)");
+    } else if (d.rosc) {
+      s.title = "ROSC: post-cardiac arrest care";
+      const ok = t => s.now.push(["ok", t]);
+      if (p) {
+        ok("ABCDE reassessment; secure airway if needed");
+        ok("SpO₂ 94–98%, normal PaCO₂ (avoid hyperventilation)");
+        ok(`Avoid hypotension: SBP above 5th centile${code.ageY != null && code.ageY >= 1 && code.ageY <= 10 ? ` (> ${70 + 2 * Math.floor(code.ageY)} mmHg)` : ""}`);
+        ok("Check glucose and electrolytes; avoid fever (≤ 37.5 °C)");
+        ok("12-lead ECG, treat the cause, contact PICU / retrieval");
+      } else {
+        ok("Airway: consider advanced airway, waveform capnography (ETCO₂ 35–45 mmHg)");
+        ok("SpO₂ 92–98%; avoid hyperventilation");
+        ok("SBP ≥ 90 mmHg, MAP ≥ 65 mmHg: fluids, vasopressors");
+        ok("12-lead ECG: STEMI or unstable → emergency coronary angiography");
+        ok("Temperature control, avoid fever; check glucose; treat the cause");
+      }
+      s.then.push("If pulse is lost: select the rhythm and restart CPR");
+      return s;
+    } else if (d.shockable) {
+      const pending = !d.lastShockT || d.lastShockT < d.lastRhythmT;
+      if (pending) {
+        s.title = `Shockable rhythm (${RHYTHM_NAME[d.rhythm]})`;
+        s.now.push(["urgent", `Shock ${k}: ${E} J (continue compressions while charging)`]);
+        s.now.push(["info", "Resume CPR immediately after the shock: no pulse check"]);
+        if (k === adrAfter && !d.adr.length) s.then.push(`After this shock: adrenaline ${adr}`);
+        if (k === 3 && d.amio === 0) s.then.push(`After this shock: amiodarone ${amio1}${p ? "" : " (or lidocaine 1–1.5 mg/kg)"}`);
+        if (k >= 5 && d.amio === 1) s.then.push(`After this shock: amiodarone 2nd dose ${amio2}`);
+        s.then.push(`Then CPR 2 min and rhythm check`);
+      } else {
+        s.title = `CPR after shock ${d.shocks}`;
+        s.now.push(["info", `CPR 2 min: ${cyc}`]);
+        if (d.shocks >= adrAfter && !d.adr.length) s.now.push(["urgent", `Adrenaline ${adr} now (after shock ${adrAfter}, ${std})`]);
+        if (d.shocks >= 3 && d.amio === 0) s.now.push(["urgent", `Amiodarone ${amio1} now${p ? "" : " (or lidocaine 1–1.5 mg/kg)"}`]);
+        else if (d.shocks >= 5 && d.amio === 1) s.now.push(["urgent", `Amiodarone 2nd dose ${amio2} now`]);
+        adrRepeat();
+        s.then.push(`Rhythm check: still shockable → shock ${k}: ${E} J`);
+        if (!d.adr.length && d.shocks < adrAfter) s.then.push(`Adrenaline after shock ${adrAfter} (${std})`);
+        if (d.amio === 0 && d.shocks < 3) s.then.push("Amiodarone after shock 3");
+        else if (d.amio === 1 && d.shocks < 5) s.then.push("Amiodarone 2nd dose after shock 5");
+        s.then.push("Non-shockable → CPR + adrenaline; organised rhythm → pulse check");
+      }
+    } else {
+      s.title = `Non-shockable rhythm (${RHYTHM_NAME[d.rhythm]})`;
+      if (!d.adr.length) s.now.push(["urgent", `Adrenaline ${adr} now (as soon as IV/IO access)`]);
+      s.now.push(["info", `CPR 2 min: ${cyc}`]);
+      adrRepeat();
+      s.then.push(`Rhythm check: shockable → shock ${k}: ${E} J`);
+      s.then.push("Still non-shockable → CPR 2 min, adrenaline every 3–5 min");
+      s.then.push("Organised rhythm → pulse check");
     }
-    if (!d.rosc && d.rhythm) {
-      const n = HT.filter(h => d.hst[h]).length;
-      if (n < HT.length) out.push(["info", `Reversible causes: ${n} of 8 reviewed`]);
+
+    // During CPR checklist, ticked off from what has been logged
+    const pr = d.procs, airway = pr["Supraglottic airway"] || pr["Intubated"];
+    s.during.push([pr["IV access"] || pr["IO access"], "IV / IO access"]);
+    s.during.push([airway, "Advanced airway"]);
+    s.during.push([pr["Waveform capnography"], "Waveform capnography"]);
+    const n = HT.filter(h => d.hst[h]).length;
+    s.during.push([n === HT.length, `4 Hs & 4 Ts (${n}/8)`]);
+    if (airway) {
+      let rate = "1 breath every 6 s (10/min)";
+      if (p) { const a = code.ageY; rate = a == null ? "10–25/min by age" : a < 1 ? "25/min" : a < 8 ? "20/min" : a < 12 ? "15/min" : "10/min"; }
+      s.now.push(["info", `Advanced airway: continuous compressions, ventilate ${rate}`]);
     }
-    return out;
+    return s;
+  }
+
+  function stepsHtml(d) {
+    const s = steps(d);
+    if (!s) return "";
+    return `<div class="step"><div class="step-h"><b>Next step</b><span>${esc(s.title)}</span><em>${s.std}</em></div>
+      <ul class="now">${s.now.map(([c, t]) => `<li class="${c}">${esc(t)}</li>`).join("")}</ul>
+      ${s.then.length ? `<div class="then-h">Then</div><ul class="then">${s.then.map(t => `<li>${esc(t)}</li>`).join("")}</ul>` : ""}
+      ${s.during.length ? `<div class="then-h">During CPR</div><div class="during">${s.during.map(([ok, t]) => `<span class="${ok ? "done" : ""}">${ok ? "✓ " : ""}${esc(t)}</span>`).join("")}</div>` : ""}
+    </div>`;
   }
 
   function summary() {
@@ -1238,7 +1331,7 @@ footer strong { color: var(--fg); }
       const cls = d.ended || d.rosc ? "" : since >= 300000 ? "urgent" : since >= 180000 ? "warn" : "ok";
       setTimer("tm-adr", mmss(since), `${d.adr.length} dose${d.adr.length === 1 ? "" : "s"}${!d.ended && since >= 180000 ? " · due" : ""}`, cls);
     }
-    const ph = prompts(d).map(([c, t]) => `<div class="pr ${c}">${esc(t)}</div>`).join("");
+    const ph = stepsHtml(d);
     if (ph !== lastPromptHtml) { lastPromptHtml = ph; const el = $("cb-prompts"); if (el) el.innerHTML = ph; }
   }
 
